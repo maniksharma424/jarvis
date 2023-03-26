@@ -55,7 +55,7 @@ const AudioRecorder = () => {
 
 
     // create the request body
-    const audio = new Audio
+
     const formData = new FormData();
     formData.append("file",audioBlob);
     formData.append("model", "whisper-1");
@@ -81,7 +81,9 @@ const AudioRecorder = () => {
       <button onClick={handleStartRecording}>Start Recording</button>
       <button onClick={handleStopRecording}>Stop Recording</button>
       <button onClick={handlePlayAudio}>Play Audio</button>
-      <audio
+   <audio
+      controls
+      src={audioBlob}
         ref={audioRef}
         onLoadedMetadata={() => setAudioDuration(audioRef.current.duration)}
       />
