@@ -37,10 +37,38 @@ const AudioRecorder = () => {
 
   const handlePlayAudio = () => {
     if (audioBlob) {
+      console.log(audioBlob);
       const audioURL = URL.createObjectURL(audioBlob);
       audioRef.current.src = audioURL;
       audioRef.current.play();
+      transcribe(audioBlob);
     }
+  };
+
+  const transcribe = async (audioBlob) => {
+    const apiUrl = "https://api.openai.com/v1/audio/transcriptions";
+    const apiKey = "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";
+
+
+
+    // create the request body
+    const formData = new FormData();
+    formData.append("file", audioBlob,"audio URL");
+    formData.append("model", "whisper-1");
+
+
+    // make the API request using fetch
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    // read the response body as JSON
+    const resp = await response.json();
+    console.log(resp);
   };
 
   return (
@@ -48,7 +76,10 @@ const AudioRecorder = () => {
       <button onClick={handleStartRecording}>Start Recording</button>
       <button onClick={handleStopRecording}>Stop Recording</button>
       <button onClick={handlePlayAudio}>Play Audio</button>
-      <audio ref={audioRef} onLoadedMetadata={() => setAudioDuration(audioRef.current.duration)} />
+      <audio
+        ref={audioRef}
+        onLoadedMetadata={() => setAudioDuration(audioRef.current.duration)}
+      />
       <div
         style={{
           height: "20px",
