@@ -16,6 +16,7 @@ const AudioRecorder = () => {
 
         mediaRecorder.addEventListener("dataavailable", (event) => {
           audioChunks.push(event.data);
+          console.log(audioChunks);
         });
 
         mediaRecorder.addEventListener("stop", () => {
@@ -55,6 +56,7 @@ const AudioRecorder = () => {
     const formData = new FormData();
     formData.append("file", audioBlob,"audio URL");
     formData.append("model", "whisper-1");
+    console.log(formData);
 
 
     // make the API request using fetch
