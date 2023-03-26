@@ -3,6 +3,7 @@ import React, { useState, useRef } from "react";
 const AudioRecorder = () => {
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioDuration, setAudioDuration] = useState(0);
+
   const mediaRecorderRef = useRef(null);
   const audioRef = useRef(null);
 
@@ -17,6 +18,7 @@ const AudioRecorder = () => {
         mediaRecorder.addEventListener("dataavailable", (event) => {
           audioChunks.push(event.data);
           console.log(audioChunks);
+
         });
 
         mediaRecorder.addEventListener("stop", () => {
@@ -53,8 +55,9 @@ const AudioRecorder = () => {
 
 
     // create the request body
+    const audio = new Audio
     const formData = new FormData();
-    formData.append("file", audioBlob,"audio URL");
+    formData.append("file",audioBlob);
     formData.append("model", "whisper-1");
     console.log(formData);
 
