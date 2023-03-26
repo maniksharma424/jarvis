@@ -1,112 +1,68 @@
-import React, { useState, useRef } from "react";
-
+import React, { useState, useEffect, useRef } from "react";
+import { createWorker } from "mediasoup-client";
+import { encode } from "base64-arraybuffer";
 
 const AudioRecorder = () => {
-  const [audioBlob, setAudioBlob] = useState(null);
-  const [audioDuration, setAudioDuration] = useState(0);
-
+  const [recording, setRecording] = useState(false);
+  const [audioSrc, setAudioSrc] = useState("");
+  const [mediaStream, setMediaStream] = useState(null);
   const mediaRecorderRef = useRef(null);
-  const audioRef = useRef(null);
 
-  const handleStartRecording = () => {
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        const mediaRecorder = new MediaRecorder(stream);
+  useEffect(() => {
+    async function startRecording() {
+      try {
+        const worker = await createWorker();
+        await worker.load("https://mediasoup-demo.global.ssl.fastly.net/mediasoup-demo-app.js");
+        await worker.start({ mediasoup: { logLevel: "warn" } });
+        const router = await worker.createRouter({ mediaCodecs: [{ kind: "audio", mimeType: "audio/opus" }] });
+        const audioTransport = await router.createWebRtcTransport({ listenIps: ["127.0.0.1"] });
+        const audioProducer = await audioTransport.produce({ kind: "audio", rtpParameters: { codecs: [{ mimeType: "audio/opus" }] } });
+        const mediaStream = new MediaStream();
+        mediaStream.addTrack(audioProducer.track);
+        const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: "audio/mp3" });
+        mediaRecorder.ondataavailable = (e) => {
+          const reader = new FileReader();
+          reader.readAsArrayBuffer(e.data);
+          reader.onloadend = () => {
+            const base64String = encode(reader.result);
+            setAudioSrc(`data:audio/mp3;base64,${base64String}`);
+          };
+        };
+        setMediaStream(mediaStream);
         mediaRecorderRef.current = mediaRecorder;
-        const audioChunks = [];
-
-        mediaRecorder.addEventListener("dataavailable", (event) => {
-          audioChunks.push(event.data);
-          console.log(audioChunks);
-
-        });
-
-        mediaRecorder.addEventListener("stop", () => {
-          const audioBlob = new Blob(audioChunks);
-          setAudioBlob(audioBlob);
-          setAudioDuration(audioRef.current.duration);
-        });
-
-        mediaRecorder.start();
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error(error);
-      });
-  };
+      }
+    }
 
-  const handleStopRecording = () => {
-    mediaRecorderRef.current.stop();
-  };
+    if (!mediaStream) {
+      startRecording();
+    }
+  }, [mediaStream]);
 
-  const handlePlayAudio = () => {
-    if (audioBlob) {
-      console.log(audioBlob);
-      const audioURL = URL.createObjectURL(audioBlob);
-      audioRef.current.src = audioURL;
-      audioRef.current.play();
-      transcribe(audioBlob);
+  const handleRecordClick = () => {
+    if (!recording) {
+      mediaRecorderRef.current.start();
+      setRecording(true);
+    } else {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
     }
   };
 
-  const transcribe = async (audioBlob) => {
-    const apiUrl = "https://api.openai.com/v1/audio/transcriptions";
-    const apiKey = "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";
-
-
-
-    // create the request body
-
-    const formData = new FormData();
-    formData.append("file",audioBlob);
-    formData.append("model", "whisper-1");
-    console.log(formData);
-
-
-    // make the API request using fetch
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: formData,
-    });
-
-    // read the response body as JSON
-    const resp = await response.json();
-    console.log(resp);
+  const handlePlayClick = () => {
+    const audioElement = document.getElementById("audio-element");
+    audioElement.src = audioSrc;
+    audioElement.play();
   };
 
   return (
     <div>
-      <button onClick={handleStartRecording}>Start Recording</button>
-      <button onClick={handleStopRecording}>Stop Recording</button>
-      <button onClick={handlePlayAudio}>Play Audio</button>
-   <audio
-      controls
-      src={audioBlob}
-        ref={audioRef}
-        onLoadedMetadata={() => setAudioDuration(audioRef.current.duration)}
-      />
-      <div
-        style={{
-          height: "20px",
-          width: "100%",
-          backgroundColor: "gray",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            height: "20px",
-            width: `${(audioDuration / 60) * 100}%`,
-            backgroundColor: "green",
-            position: "absolute",
-            top: 0,
-            left: 0,
-          }}
-        />
-      </div>
+      <button onClick={handleRecordClick}>{recording ? "Stop Recording" : "Start Recording"}</button>
+      <button onClick={handlePlayClick} disabled={!audioSrc}>
+        Play Recording
+      </button>
+      <audio id="audio-element" controls />
     </div>
   );
 };
