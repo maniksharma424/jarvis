@@ -46,26 +46,25 @@ const AudioRecorder = () => {
 
   const handleUpload = async () => {
     const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-    const model = "whisper-1";
+
     console.log(audioBlob);
 
-    const formData = new FormData();
-    formData.append("file", audioBlob);
-    formData.append("model", model);
-
-    // const formData = {
-    //   file:audioBlob,
-    //   model:"whisper-1"
-    // }
+    // const formData = new FormData();
+    // formData.append("file", audioBlob);
+    // formData.append("model", 'whisper-1');
+    const formData = {
+        file: audioBlob,
+        model: "whisper-1"
+      }
+      console.log(formData);
 
     fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
-        "Content-Type": "audio/webm",
+        "Content-Type": "multipart/form-data",
         Authorization: `Bearer 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`,
-
       },
-      body:formData,
+     body: formData,
     })
       .then((response) => response.json())
       .then((data) => console.log(data))
