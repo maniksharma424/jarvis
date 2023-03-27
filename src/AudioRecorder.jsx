@@ -1,68 +1,115 @@
-import React, { useState, useEffect, useRef } from "react";
-import { createWorker } from "mediasoup-client";
-import { encode } from "base64-arraybuffer";
-
+import React, { useState, useRef } from "react";
+import { Configuration } from "openai";
+import { OpenAIApi } from "openai";
+const configuration = new Configuration({
+      apiKey: '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'
+    });
 const AudioRecorder = () => {
   const [recording, setRecording] = useState(false);
-  const [audioSrc, setAudioSrc] = useState("");
-  const [mediaStream, setMediaStream] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
   const mediaRecorderRef = useRef(null);
 
-  useEffect(() => {
-    async function startRecording() {
-      try {
-        const worker = await createWorker();
-        await worker.load("https://mediasoup-demo.global.ssl.fastly.net/mediasoup-demo-app.js");
-        await worker.start({ mediasoup: { logLevel: "warn" } });
-        const router = await worker.createRouter({ mediaCodecs: [{ kind: "audio", mimeType: "audio/opus" }] });
-        const audioTransport = await router.createWebRtcTransport({ listenIps: ["127.0.0.1"] });
-        const audioProducer = await audioTransport.produce({ kind: "audio", rtpParameters: { codecs: [{ mimeType: "audio/opus" }] } });
-        const mediaStream = new MediaStream();
-        mediaStream.addTrack(audioProducer.track);
-        const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: "audio/mp3" });
-        mediaRecorder.ondataavailable = (e) => {
-          const reader = new FileReader();
-          reader.readAsArrayBuffer(e.data);
-          reader.onloadend = () => {
-            const base64String = encode(reader.result);
-            setAudioSrc(`data:audio/mp3;base64,${base64String}`);
-          };
-        };
-        setMediaStream(mediaStream);
-        mediaRecorderRef.current = mediaRecorder;
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    if (!mediaStream) {
-      startRecording();
-    }
-  }, [mediaStream]);
-
-  const handleRecordClick = () => {
-    if (!recording) {
-      mediaRecorderRef.current.start();
-      setRecording(true);
-    } else {
-      mediaRecorderRef.current.stop();
-      setRecording(false);
-    }
+  const handleStartRecording = () => {
+    setRecording(true);
+    setAudioChunks([]);
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      mediaRecorder.addEventListener("dataavailable", (e) => {
+        if (e.data.size > 0) {
+          setAudioChunks((chunks) => [...chunks, e.data]);
+        }
+      });
+      mediaRecorder.addEventListener("stop", () => {
+        setRecording(false);
+      });
+    });
   };
 
-  const handlePlayClick = () => {
-    const audioElement = document.getElementById("audio-element");
-    audioElement.src = audioSrc;
-    audioElement.play();
+  const handleStopRecording = () => {
+    mediaRecorderRef.current.stop();
+  };
+
+  const handleDownload = () => {
+    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const link = document.createElement("a");
+    link.href = audioUrl;
+    link.download = "recording.webm";
+    document.body.appendChild(link);
+    link.click();
+  };
+
+
+
+  const handleUpload = async () => {
+    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+    console.log(audioBlob);
+    // const formData = new FormData();
+    // formData.append("file", "audioBlob");
+    // formData.append("model", "whisper-1");
+
+    const formData = {
+      file:audioBlob,
+      model:"whisper-1"
+    }
+
+
+    fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "audio/webm",
+        Authorization: `Bearer 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`,
+        
+      },
+      body:JSON.stringify(formData),
+    })
+      .then((response) => response.json())
+      .then((data) => console.log(data))
+      .catch((error) => console.error(error));
+
+    
+    // const openai = new OpenAIApi(configuration);
+    // const resp = await openai.createTranscription({
+    //   file:audioBlob,
+    //   model:"whisper-1"
+    //  });
+    // console.log(resp);
   };
 
   return (
     <div>
-      <button onClick={handleRecordClick}>{recording ? "Stop Recording" : "Start Recording"}</button>
-      <button onClick={handlePlayClick} disabled={!audioSrc}>
-        Play Recording
+      <button
+        className="border-[1px] border-black"
+        onClick={handleStartRecording}
+        disabled={recording}
+      >
+        {recording ? "Recording..." : "Record"}
       </button>
-      <audio id="audio-element" controls />
+      <button
+        className="border-[1px] border-black"
+        onClick={handleStopRecording}
+        disabled={!recording}
+      >
+        Stop
+      </button>
+      <button
+        className="border-[1px] border-black"
+        onClick={handleDownload}
+        disabled={!audioChunks.length}
+      >
+        Download
+      </button>
+      <button
+        className="border-[1px] border-black"
+        onClick={handleUpload}
+        disabled={!audioChunks.length}
+      >
+        Upload
+      </button>
     </div>
   );
 };
