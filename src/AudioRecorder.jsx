@@ -60,7 +60,7 @@ const AudioRecorder = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer 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`,
+          Authorization: `Bearer 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`,
         },
         body: payloadString,
       })
