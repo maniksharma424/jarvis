@@ -44,32 +44,30 @@ const AudioRecorder = () => {
     link.click();
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onload = async () => {
+      const audioBase64 = await reader.result.split(",")[1];
+      const payload = {
+        model: "whisper-1",
+        file: audioBase64,
+      };
+      const payloadString =  JSON.stringify(payload);
 
-    console.log(audioBlob);
-
-    // const formData = new FormData();
-    // formData.append("file", audioBlob);
-    // formData.append("model", 'whisper-1');
-    const formData = {
-        file: audioBlob,
-        model: "whisper-1"
-      }
-      console.log(formData);
-
-    fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer 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`,
-      },
-     body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => console.log(data))
-      .catch((error) => console.error(error));
-      console.log(formData);
+      fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer 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`,
+        },
+        body: payloadString,
+      })
+        .then((response) => response.json())
+        .then((data) => console.log(data))
+        .catch((error) => console.error(error));
+    };
 
     // const openai = new OpenAIApi(configuration);
     // const resp = await openai.createTranscription({formData});
